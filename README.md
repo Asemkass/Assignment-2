@@ -120,6 +120,3 @@ The charts will be saved in the `charts/` folder, and datasets will be exported 
 * Line charts with time-series data (e.g., monthly shipping costs) can include a **time slider** using **Plotly/Dash** for dynamic exploration.
 * Users can select a specific range of months, and the chart updates interactively to show trends within that period.
 * Enhances temporal analysis without regenerating static charts.
-
-
-Хочешь, чтобы я это сделал?
