@@ -2,11 +2,9 @@ import pandas as pd
 import psycopg2
 import os
 from dotenv import load_dotenv
-import matplotlib.pyplot as plt
 import plotly.express as px
 from openpyxl import load_workbook
 from openpyxl.formatting.rule import ColorScaleRule
-from openpyxl.styles import PatternFill
 
 load_dotenv()
 
@@ -18,31 +16,10 @@ def get_db_connection():
         password=os.getenv('DB_PASSWORD', ''),
         port=os.getenv('DB_PORT', '5432')
     )
+
 def execute_query(query):
     with get_db_connection() as conn:
         return pd.read_sql_query(query, conn)
-    
-def create_plot(df, config):
-    plt.figure(figsize=(10, 6))
-    
-    if config['type'] == 'pie':
-        plt.pie(df[config['y']], labels=df[config['x']], autopct='%1.1f%%')
-    elif config['type'] == 'bar':
-        plt.bar(df[config['x']], df[config['y']])
-        plt.xticks(rotation=45)
-    elif config['type'] == 'barh':
-        plt.barh(df[config['x']], df[config['y']])
-    elif config['type'] == 'line':
-        plt.plot(df[config['x']], df[config['y']], marker='o', linewidth=2)
-    elif config['type'] == 'hist':
-        plt.hist(df[config['x']], bins=30, alpha=0.7, edgecolor='black')
-    elif config['type'] == 'scatter':
-        plt.scatter(df[config['x']], df[config['y']], alpha=0.5)
-    
-    plt.title(config['title'], fontsize=14, fontweight='bold')
-    plt.tight_layout()
-    plt.savefig(config['filename'], dpi=100, bbox_inches='tight')
-    plt.close()
 
 def interactive_plot():
     query = """
@@ -67,8 +44,8 @@ def interactive_plot():
         color="customer_state",
         animation_frame="month",
         animation_group="customer_state",
-        title="Динамика продаж по штатам (с временным ползунком)",
-        labels={"customer_state": "Штат", "total_sales": "Продажи"}
+        title="Sales Dynamics by State (with Time Slider)",
+        labels={"customer_state": "State", "total_sales": "Sales"}
     )
     fig.update_layout(xaxis={'categoryorder':'total descending'})
     fig.show()
@@ -102,112 +79,79 @@ def export_to_excel(dataframes_dict, filename="exports/ecommerce_report.xlsx"):
                 ws.conditional_formatting.add(cell_range, rule)
 
     wb.save(filename)
-    print(f"\nСоздан файл {os.path.basename(filename)}, {len(dataframes_dict)} листа, {total_rows} строк")
+    print(f"\nExcel file created: {os.path.basename(filename)}, {len(dataframes_dict)} sheets, {total_rows} rows")
 
 def main():
-    queries_config = {
-        'payment_analysis': {
-            'query': """
-                SELECT 
-                    p.payment_type, 
-                    COUNT(*) AS payment_count
-                FROM olist_orders o
-                JOIN olist_order_payments p ON o.order_id = p.order_id
-                JOIN olist_customers c ON o.customer_id = c.customer_id
-                GROUP BY p.payment_type
-                ORDER BY payment_count DESC;
-            """,
-            'type': 'pie', 'x': 'payment_type', 'y': 'payment_count',
-            'title': 'Распределение заказов по методам оплаты', 
-            'filename': 'charts/payment_types_pie.png'
-        },
-        'top_categories': {
-            'query': """
-                SELECT 
-                    pt.product_category_name_english AS category_name,
-                    ROUND(SUM(oi.price), 2) AS total_revenue
-                FROM olist_order_items oi
-                JOIN olist_products p ON oi.product_id = p.product_id
-                JOIN product_category_name_translation pt 
-                    ON p.product_category_name = pt.product_category_name
-                GROUP BY pt.product_category_name_english
-                ORDER BY total_revenue DESC
-                LIMIT 10;
-            """,
-            'type': 'bar', 'x': 'category_name', 'y': 'total_revenue',
-            'title': 'Топ-10 категорий товаров по выручке', 
-            'filename': 'charts/top_categories_bar.png'
-        },
-        'delivery_analysis': {
-            'query': """
-                SELECT 
-                    c.customer_state,
-                    ROUND(AVG(EXTRACT(EPOCH FROM (o.order_delivered_customer_date - o.order_purchase_timestamp)) / 86400), 2) AS avg_delivery_days
-                FROM olist_orders o
-                JOIN olist_customers c ON o.customer_id = c.customer_id
-                WHERE o.order_status = 'delivered' 
-                  AND o.order_delivered_customer_date IS NOT NULL
-                GROUP BY c.customer_state
-                HAVING COUNT(o.order_id) >= 50
-                ORDER BY avg_delivery_days DESC;
-            """,
-            'type': 'barh', 'x': 'customer_state', 'y': 'avg_delivery_days',
-            'title': 'Среднее время доставки по штатам', 
-            'filename': 'charts/delivery_by_state_barh.png'
-        },
-        'monthly_sales': {
-            'query': """
-                SELECT 
-                    DATE_TRUNC('month', o.order_purchase_timestamp) AS month,
-                    ROUND(SUM(oi.price), 2) AS total_sales
-                FROM olist_orders o
-                JOIN olist_order_items oi ON o.order_id = oi.order_id
-                WHERE o.order_purchase_timestamp IS NOT NULL
-                GROUP BY month
-                ORDER BY month;
-            """,
-            'type': 'line', 'x': 'month', 'y': 'total_sales',
-            'title': 'Динамика продаж по месяцам', 
-            'filename': 'charts/monthly_sales_line.png'
-        },
-        'order_values': {
-            'query': """
-                SELECT 
-                    p.payment_value
-                FROM olist_order_payments p
-                JOIN olist_orders o ON o.order_id = p.order_id
-                WHERE p.payment_value IS NOT NULL;
-            """,
-            'type': 'hist', 'x': 'payment_value',
-            'title': 'Распределение стоимости заказов', 
-            'filename': 'charts/order_values_hist.png'
-        },
-        'freight_vs_payment': {
-            'query': """
-                SELECT 
-                    oi.freight_value,
-                    p.payment_value
-                FROM olist_order_items oi
-                JOIN olist_order_payments p ON oi.order_id = p.order_id
-                JOIN olist_orders o ON o.order_id = oi.order_id
-                WHERE oi.freight_value IS NOT NULL 
-                  AND p.payment_value IS NOT NULL;
-            """,
-            'type': 'scatter', 'x': 'freight_value', 'y': 'payment_value',
-            'title': 'Зависимость стоимости доставки от суммы заказа', 
-            'filename': 'charts/freight_vs_payment_scatter.png'
-        }
+    queries = {
+        'payment_analysis': """
+            SELECT 
+                p.payment_type, 
+                COUNT(*) AS payment_count
+            FROM olist_orders o
+            JOIN olist_order_payments p ON o.order_id = p.order_id
+            JOIN olist_customers c ON o.customer_id = c.customer_id
+            GROUP BY p.payment_type
+            ORDER BY payment_count DESC;
+        """,
+        'top_categories': """
+            SELECT 
+                pt.product_category_name_english AS category_name,
+                ROUND(SUM(oi.price), 2) AS total_revenue
+            FROM olist_order_items oi
+            JOIN olist_products p ON oi.product_id = p.product_id
+            JOIN product_category_name_translation pt 
+                ON p.product_category_name = pt.product_category_name
+            GROUP BY pt.product_category_name_english
+            ORDER BY total_revenue DESC
+            LIMIT 10;
+        """,
+        'delivery_analysis': """
+            SELECT 
+                c.customer_state,
+                ROUND(AVG(EXTRACT(EPOCH FROM (o.order_delivered_customer_date - o.order_purchase_timestamp)) / 86400), 2) AS avg_delivery_days
+            FROM olist_orders o
+            JOIN olist_customers c ON o.customer_id = c.customer_id
+            WHERE o.order_status = 'delivered' 
+              AND o.order_delivered_customer_date IS NOT NULL
+            GROUP BY c.customer_state
+            HAVING COUNT(o.order_id) >= 50
+            ORDER BY avg_delivery_days DESC;
+        """,
+        'monthly_sales': """
+            SELECT 
+                DATE_TRUNC('month', o.order_purchase_timestamp) AS month,
+                ROUND(SUM(oi.price), 2) AS total_sales
+            FROM olist_orders o
+            JOIN olist_order_items oi ON o.order_id = oi.order_id
+            WHERE o.order_purchase_timestamp IS NOT NULL
+            GROUP BY month
+            ORDER BY month;
+        """,
+        'order_values': """
+            SELECT 
+                p.payment_value
+            FROM olist_order_payments p
+            JOIN olist_orders o ON o.order_id = p.order_id
+            WHERE p.payment_value IS NOT NULL;
+        """,
+        'freight_vs_payment': """
+            SELECT 
+                oi.freight_value,
+                p.payment_value
+            FROM olist_order_items oi
+            JOIN olist_order_payments p ON oi.order_id = p.order_id
+            JOIN olist_orders o ON o.order_id = oi.order_id
+            WHERE oi.freight_value IS NOT NULL 
+              AND p.payment_value IS NOT NULL;
+        """
     }
 
-    os.makedirs("charts", exist_ok=True)
-
     excel_data = {}
-
-    for name, config in queries_config.items():
-        df = execute_query(config['query'])
+    for name, query in queries.items():
+        df = execute_query(query)
         if df is not None and not df.empty:
-            create_plot(df, config)
             excel_data[name] = df
+
     orders_df = execute_query("""
         SELECT 
             o.order_id,
@@ -226,8 +170,7 @@ def main():
     excel_data["orders_sample"] = orders_df
 
     export_to_excel(excel_data)
-
-    print("\n Открываю интерактивный график...")
+    print("\nOpening interactive plot...")
     interactive_plot()
 
 if __name__ == "__main__":
