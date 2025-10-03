@@ -1,10 +1,13 @@
 # Assignment-2
 
+
 ---
 
 # Olist E-Commerce Data Visualization
 
 This project generates **six different charts** based on the Olist e-commerce dataset using **Python**, **Pandas**, **Matplotlib**, and **PostgreSQL**. The visualizations provide insights into orders, product prices, delivery delays, and more.
+
+Additionally, the project supports **exporting data to Excel with formatting** and **interactive time slider functionality** for temporal analysis.
 
 ---
 
@@ -20,7 +23,12 @@ The project produces the following visualizations:
 5. **Histogram** – Product price distribution.
 6. **Scatter Plot** – Product count vs total order value per order.
 
-All charts are saved to the `charts/` folder.
+**Additional Features:**
+
+* **Excel Export** – Export all datasets used for visualizations to `.xlsx` files with formatted headers, number formats, and filters.
+* **Interactive Time Slider** – Filter charts (e.g., line chart of shipping costs) by specific time ranges dynamically.
+
+All charts and exported Excel files are saved to the `charts/` and `exports/` folders respectively.
 
 ---
 
@@ -31,7 +39,7 @@ All charts are saved to the `charts/` folder.
 * Python packages:
 
 ```bash
-pip install pandas psycopg2-binary matplotlib python-dotenv
+pip install pandas psycopg2-binary matplotlib openpyxl python-dotenv plotly dash
 ```
 
 ---
@@ -74,7 +82,7 @@ Run the main Python script:
 python main.py
 ```
 
-The charts will be saved in the `charts/` folder.
+The charts will be saved in the `charts/` folder, and datasets will be exported to `exports/`.
 
 ---
 
@@ -91,5 +99,27 @@ The charts will be saved in the `charts/` folder.
 
 ---
 
+## Excel Export
 
-Хочешь, чтобы я так сделал?
+* All query results are saved to **Excel files** in the `exports/` folder.
+* Features include:
+
+  * Formatted headers
+  * Number formatting (currency, dates, percentages)
+  * Auto-filters for easy sorting and searching
+* Example export files:
+
+  * `exports/avg_delivery_delay_by_state.xlsx`
+  * `exports/canceled_orders_by_category.xlsx`
+  * `exports/order_status_distribution.xlsx`
+
+---
+
+## Interactive Time Slider
+
+* Line charts with time-series data (e.g., monthly shipping costs) can include a **time slider** using **Plotly/Dash** for dynamic exploration.
+* Users can select a specific range of months, and the chart updates interactively to show trends within that period.
+* Enhances temporal analysis without regenerating static charts.
+
+
+Хочешь, чтобы я это сделал?
